@@ -101,10 +101,17 @@ func _ready() -> void:
 	for i in range(6):
 		var avatar_button := Button.new()
 		avatar_button.custom_minimum_size = Vector2(104, 112)
-		avatar_button.icon = textures["avatar-%d" % (i + 1)]
-		avatar_button.expand_icon = true
-		avatar_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		avatar_button.add_theme_constant_override("icon_max_width", 96)
+		var portrait := TextureRect.new()
+		portrait.texture = textures["avatar-%d" % (i + 1)]
+		portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		portrait.position = Vector2(5, 9)
+		portrait.size = Vector2(94, 94)
+		portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var rounded := ShaderMaterial.new()
+		rounded.shader = preload("res://assets/ui/rounded-portrait.gdshader")
+		portrait.material = rounded
+		avatar_button.add_child(portrait)
 		avatar_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 		avatar_button.pressed.connect(_select_avatar.bind(i + 1))
 		avatar_button.focus_entered.connect(func(): avatar_scroll.ensure_control_visible(avatar_button))
