@@ -45,6 +45,13 @@ var ui_layer: Control
 var fit_scale := 1.0
 var fit_offset := Vector2.ZERO
 var current_entry_id := ""
+var cloud_url := ""
+var cloud_token := ""
+var cloud_user_id := ""
+var cloud_records: Array = []
+var cloud_available := false
+var cloud_busy := false
+var cloud_pending_score := -1
 var panel_cache: Dictionary = {}
 func _ready() -> void:
 	_load_assets()
@@ -108,6 +115,7 @@ func _ready() -> void:
 	_create_volume_button()
 	_fit_view()
 	_sync_buttons()
+	_configure_cloud()
 
 func _create_volume_button() -> void:
 	volume_button = _button(Rect2(326, 5, 54, 56), "", _toggle_sound, "Activer le son", true)
@@ -237,6 +245,7 @@ func _submit_name() -> void:
 	if DisplayServer.has_feature(DisplayServer.FEATURE_VIRTUAL_KEYBOARD):
 		DisplayServer.virtual_keyboard_hide()
 	_save()
+	_sync_cloud(_personal_record())
 	_start_game()
 
 func _start_game() -> void:
@@ -395,6 +404,7 @@ func _finish() -> void:
 		records.resize(100)
 	result_age = 0.0
 	_save()
+	_sync_cloud(round_model.score)
 	_play("record" if new_record else "click")
 	_sync_buttons()
 
@@ -415,6 +425,7 @@ func _load_save() -> void:
 	var data = JSON.parse_string(file.get_as_text())
 	if not data is Dictionary:
 		return
+	cloud_token = str(data.get("cloud_token", ""))
 	player_name = str(data.get("player_name", "")).left(16)
 	player_avatar = clampi(int(data.get("player_avatar", 1)), 1, 6)
 	sound_enabled = data.get("sound", false) == true
@@ -441,9 +452,64 @@ func _save() -> void:
 	if file == null:
 		save_available = false
 		return
-	file.store_string(JSON.stringify({"records": records, "player_name": player_name, "player_avatar": player_avatar, "sound": sound_enabled, "motion": motion_enabled}))
+	file.store_string(JSON.stringify({"cloud_token": cloud_token, "records": records, "player_name": player_name, "player_avatar": player_avatar, "sound": sound_enabled, "motion": motion_enabled}))
 	file.close()
 	save_available = true
+
+func _configure_cloud() -> void:
+	if not OS.has_feature("web"):
+		return
+	cloud_url = str(JavaScriptBridge.eval("(location.hostname === 'localhost' || location.hostname === '127.0.0.1') && location.port !== '8787' ? '' : location.origin"))
+	if cloud_url.is_empty():
+		return
+	if cloud_token.length() != 64:
+		cloud_token = Crypto.new().generate_random_bytes(32).hex_encode()
+		_save()
+	if player_name.length() >= 2:
+		_sync_cloud(_personal_record())
+
+func _cloud_request(path: String, method: int, payload: Dictionary = {}) -> Dictionary:
+	var http := HTTPRequest.new()
+	http.timeout = 12.0
+	add_child(http)
+	var headers := PackedStringArray(["Content-Type: application/json", "Authorization: Bearer " + cloud_token])
+	var error := http.request(cloud_url + path, headers, method, "" if method == HTTPClient.METHOD_GET else JSON.stringify(payload))
+	if error != OK:
+		http.queue_free()
+		return {}
+	var response: Array = await http.request_completed
+	http.queue_free()
+	if response[0] != HTTPRequest.RESULT_SUCCESS or response[1] != 200:
+		return {}
+	var data = JSON.parse_string(response[3].get_string_from_utf8())
+	return data if data is Dictionary else {}
+
+func _sync_cloud(score := -1) -> void:
+	if cloud_url.is_empty() or player_name.length() < 2:
+		return
+	if cloud_busy:
+		cloud_pending_score = maxi(cloud_pending_score, score)
+		return
+	cloud_busy = true
+	var profile := await _cloud_request("/api/profile", HTTPClient.METHOD_PUT, {"name": player_name, "avatar": player_avatar})
+	if profile.get("player") is Dictionary:
+		cloud_user_id = str(profile.player.id)
+		if score >= 0:
+			var saved := await _cloud_request("/api/score", HTTPClient.METHOD_POST, {"score": score})
+			if saved.is_empty():
+				cloud_available = false
+		var ranking := await _cloud_request("/api/leaderboard", HTTPClient.METHOD_GET)
+		cloud_available = ranking.get("players") is Array
+		if cloud_available:
+			cloud_records = ranking.players
+	else:
+		cloud_available = false
+	cloud_busy = false
+	queue_redraw()
+	if cloud_pending_score >= 0:
+		var pending := cloud_pending_score
+		cloud_pending_score = -1
+		_sync_cloud(pending)
 
 func _cell(i: int) -> Rect2:
 	return Rect2(12 + (i % 3) * 123, 229 + (i / 3) * 126, 120, 124)
@@ -659,6 +725,7 @@ func _draw_game() -> void:
 		draw_rect(Rect2(0, 58, 390, 786), Color(1, 0.2, 0.2, 0.08))
 
 func _draw_results() -> void:
+	var ranking: Array = cloud_records if cloud_available else records
 	_hero(25, true)
 	_text("Nouveau record !" if new_record else "Bien joué, %s !" % player_name.left(12), 195, 338, 26, CREAM, true)
 	_pic("score-burst", Rect2(26, 344, 338, 86))
@@ -669,7 +736,7 @@ func _draw_results() -> void:
 	_panel(Rect2(18, 469, 354, 224))
 	for i in range(5):
 		var y := 478 + i * 42
-		var active: bool = i < records.size() and str(records[i].get("name", "Moi")).to_lower() == player_name.to_lower()
+		var active: bool = i < ranking.size() and (str(ranking[i].get("id", "")) == cloud_user_id if cloud_available else str(ranking[i].get("name", "Moi")).to_lower() == player_name.to_lower())
 		if active:
 			_pic("leaderboard-row-active", Rect2(20, y - 3, 350, 42), 1, false)
 		elif i > 0:
@@ -677,17 +744,17 @@ func _draw_results() -> void:
 		_pic("rank-%d" % (i + 1 if i < 3 else 0), Rect2(28, y, 31, 31))
 		if i >= 3:
 			_text(str(i + 1), 43, y + 22, 14, CREAM, true)
-		if i < records.size():
-			_pic("avatar-%d" % clampi(int(records[i].get("avatar", 1)), 1, 6), Rect2(65, y, 32, 32))
-			_text(str(records[i].get("name", "Moi")).left(13), 110, y + 22, 13)
-			_text(str(records[i].score), 317, y + 22, 15, CREAM, true)
+		if i < ranking.size():
+			_pic("avatar-%d" % clampi(int(ranking[i].get("avatar", 1)), 1, 6), Rect2(65, y, 32, 32))
+			_text(str(ranking[i].get("name", "Moi")).left(13), 110, y + 22, 13)
+			_text(str(ranking[i].score), 317, y + 22, 15, CREAM, true)
 		else:
 			_text("À toi de jouer…", 80, y + 22, 12, MUTED, false, false)
 	_pic("next-rank-card", Rect2(18, 701, 354, 52), 1, false)
 	_text("Ton record : %d pts" % _personal_record(), 195, 724, 13, MINT, true)
 	_text("%d attrapés · %d erreurs · Combo ×%d" % [round_model.caught, round_model.mistakes, round_model.best_combo], 195, 743, 10, MUTED, true, false)
 	_action(Rect2(58, 767, 274, 55), "Rejouer")
-	_text("Classement local" if save_available else "Sauvegarde indisponible", 195, 839, 9, MUTED, true, false)
+	_text("Classement en ligne" if cloud_available else ("Classement local" if save_available else "Sauvegarde indisponible"), 195, 839, 9, MUTED, true, false)
 	if new_record and motion_enabled and result_age < 2:
 		for i in range(10):
 			var y := result_age * 65 + i * 16 + 55

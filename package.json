@@ -1,0 +1,10 @@
+{
+  "name": "panique-au-bureau", "private": true, "type": "module",
+  "scripts": {
+    "build:web": "./tools/export-web.sh && python3 tools/prepare-cloudflare.py",
+    "dev:cloud": "wrangler dev",
+    "deploy": "npm run build:web && wrangler d1 migrations apply DB --remote && wrangler deploy",
+    "test:cloud": "node --test tests/cloud-api.test.mjs"
+  },
+  "devDependencies": { "wrangler": "4.138.0" }
+}
