@@ -67,7 +67,7 @@ Le classement présente uniquement les parties enregistrées sur cet appareil. A
 
 ## Hébergement Cloudflare
 
-Le jeu et son API sont déployés sur https://panique.promo.dev dans le compte Promodev. Le Worker `panique-au-bureau` utilise la base D1 du même nom, avec une juridiction UE. Aucun service payant supplémentaire n’est activé par la configuration.
+Le jeu et son API sont déployés sur https://panique.promo.dev/play dans le compte Promodev. Le Worker `panique-au-bureau` utilise la base D1 du même nom, avec une juridiction UE. Aucun service payant supplémentaire n’est activé par la configuration.
 
 - `users` : identifiant, empreinte du jeton de l’appareil, pseudo et avatar.
 - `scores` : meilleur score de chaque utilisateur et date du record. La clé `user_id` référence `users.id`.
@@ -79,3 +79,5 @@ Le profil local reste disponible hors ligne. Une fois en ligne, le jeu synchroni
 Après `npm ci`, lancer `npm run deploy` avec une session Wrangler autorisée au compte Promodev. La commande exporte Godot, prépare les fichiers publics, applique les migrations D1 et publie le Worker. Le moteur WebAssembly est servi compressé pour respecter la limite de 25 Mio par fichier Cloudflare. Les portraits personnels retirés du jeu et les aperçus de développement ne sont pas publiés.
 
 Pour tester l’API sans toucher à la base distante : `npm run build:web`, `npx wrangler d1 migrations apply DB --local`, puis `npm run dev:cloud`. Dans un autre terminal, `npm run test:cloud` vérifie la validation, l’isolation des profils, le classement et la conservation du meilleur score. Le serveur de développement crée des données de test uniquement dans la base locale.
+
+La racine `/` est une page blanche ; le jeu est accessible par `/play`. Ce chemin discret ne constitue pas une authentification.

@@ -31,9 +31,20 @@ test('profiles, isolated identity, best scores and validation', async () => {
   assert.equal(large.status,413);
 });
 test('engine is decoded to WebAssembly exactly once', async () => {
-  const response = await fetch(base + '/index.wasm');
+  const response = await fetch(base + '/play/index.wasm');
   assert.equal(response.status, 200);
   assert.equal(response.headers.get('content-type'), 'application/wasm');
   const bytes = new Uint8Array(await response.arrayBuffer());
   assert.deepEqual([...bytes.slice(0,4)], [0,97,115,109]);
+});
+
+test('root is blank and game is available at /play', async () => {
+  const root = await (await fetch(base + '/')).text();
+  assert(!root.includes('<canvas'));
+  assert(root.includes('background:white'));
+  const old = await (await fetch(base + '/index.html')).text();
+  assert(!old.includes('<canvas'));
+  const play = await (await fetch(base + '/play')).text();
+  assert(play.includes('<canvas'));
+  assert(play.includes('<base href="/play/">'));
 });

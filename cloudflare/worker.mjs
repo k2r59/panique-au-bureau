@@ -3,8 +3,14 @@ const playerQuery = 'SELECT u.id, u.name, u.avatar, COALESCE(s.best_score, 0) AS
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    if (url.pathname === '/index.wasm') {
-      const asset = await env.ASSETS.fetch(new Request(new URL('/index.wasm.gz', url), {method: request.method, headers: {'Accept-Encoding': 'identity'}}));
+    if (url.pathname === '/' || url.pathname === '/index.html') {
+      return new Response('<!doctype html><html><head><meta name="robots" content="noindex,nofollow"><title></title></head><body style="margin:0;background:white"></body></html>', {headers: {'Content-Type':'text/html; charset=utf-8', 'Cache-Control':'no-store'}});
+    }
+    if (url.pathname === '/play' || url.pathname === '/play/') {
+      return env.ASSETS.fetch(new Request(new URL('/play/index.html', url), request));
+    }
+    if (url.pathname === '/play/index.wasm') {
+      const asset = await env.ASSETS.fetch(new Request(new URL('/play/index.wasm.gz', url), {method: request.method, headers: {'Accept-Encoding': 'identity'}}));
       const headers = new Headers(asset.headers);
       headers.set('Content-Type', 'application/wasm');
       headers.set('Content-Encoding', 'gzip');
