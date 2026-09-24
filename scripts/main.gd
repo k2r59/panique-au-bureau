@@ -24,6 +24,7 @@ var save_available := true
 var countdown := 0.0
 var result_age := 0.0
 var combo_age := 10.0
+var combo_repeat := false
 var error_age := 10.0
 var last_second := 60
 var primary: Button
@@ -165,7 +166,7 @@ func _fit_view() -> void:
 		ui_layer.scale = Vector2.ONE * fit_scale
 
 func _load_assets() -> void:
-	textures["desks-atlas"] = load("res://assets/generated/desks-atlas.png")
+	textures["desks-atlas"] = load("res://assets/generated/desks-perspective.png")
 	for name in ["office", "cubicle", "desk", "welcome-logo", "welcome-desk", "welcome-plant", "welcome-pumpkin", "ghost", "zombie", "vampire", "colleague", "candy", "pumpkin", "trophy", "prop-laptop", "prop-lamp", "prop-folders", "prop-mug", "prop-succulent"]:
 		textures[name] = load("res://assets/webp/%s.webp" % name)
 	for name in ["button-normal", "cobweb", "poster-frame", "bat", "halo", "steam", "combo-burst", "score-burst", "tap-ring", "rank-1", "rank-2", "rank-3", "rank-0", "confetti-orange", "confetti-mint", "confetti-purple", "confetti-cream", "rule-card", "legend-card", "leaderboard-row-active", "next-rank-card", "record-title"]:
@@ -182,8 +183,8 @@ func _load_assets() -> void:
 	textures["game-guide"] = load("res://assets/ui/game-guide.svg")
 	for i in range(1, 7):
 		textures["avatar-%d" % i] = load("res://assets/webp/avatar-%d.webp" % i)
-	for i in range(1, 6):
-		textures["combo-x%d" % i] = load("res://assets/components/combo-x%d.png" % i)
+	for i in range(2, 6):
+		textures["combo-x%d" % i] = load("res://assets/ui/combo-gold-%d.svg" % i)
 	for name in ["tap", "bonus", "error", "countdown", "record", "click"]:
 		sounds[name] = load("res://assets/audio/%s.wav" % name)
 
@@ -335,8 +336,10 @@ func _hit(index: int) -> void:
 		_play("error")
 	else:
 		_play("bonus" if result.name == "candy" else "tap")
-		if round_model.combo > previous:
+		if round_model.combo > previous or (round_model.combo == 5 and round_model.streak % 3 == 0):
+			combo_repeat = round_model.combo == previous
 			combo_age = 0.0
+			_play("bonus")
 
 func _input(event: InputEvent) -> void:
 	if screen == "profile" and event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
@@ -717,6 +720,33 @@ func _draw_desk(index: int) -> void:
 		if is_object:
 			_sprite(target.name, Rect2(rect.position + Vector2(21, 4 + settle), Vector2(81, 81)), index)
 
+
+func _draw_combo() -> void:
+	var t := combo_age
+	var pop := 1.0
+	var angle := -0.055
+	if motion_enabled and t < 0.65:
+		if combo_repeat:
+			pop = 1.0 + 0.08 * sin(minf(t / 0.4, 1.0) * PI)
+		elif t < 0.14:
+			pop = lerpf(0.5, 1.19, sin(t / 0.14 * PI / 2))
+		else:
+			pop = 1.0 + 0.19 * exp(-8 * (t - 0.14)) * cos((t - 0.14) * 19)
+		angle += sin(t * 25) * 0.04 * (1 - t / 0.65)
+	draw_set_transform(fit_offset + Vector2(195, 157) * fit_scale, angle, Vector2.ONE * fit_scale * pop)
+	_pic("combo-x%d" % round_model.combo, Rect2(-145, -46, 290, 93), 1, false)
+	for i in range(8):
+		var a := float(i) * TAU / 8 + 0.2
+		var spread := minf(t / 0.45, 1.0) if motion_enabled else 1.0
+		var base := Vector2(cos(a) * 116, sin(a) * 29)
+		var direction := Vector2(cos(a), sin(a))
+		var fade := 1.0 - clampf((t - 0.25) / 0.5, 0, 1)
+		if fade > 0:
+			var start := base + direction * spread * 12
+			var side := Vector2(-direction.y, direction.x) * (1.5 + fade)
+			draw_colored_polygon(PackedVector2Array([start - side, start + direction * (6 + fade * 8), start + side]), Color(1, 0.68, 0.15, fade))
+	draw_set_transform(fit_offset, 0, Vector2.ONE * fit_scale)
+
 func _draw_game() -> void:
 	_text("SCORE", 20, 77, 10, MUTED)
 	_text(str(round_model.score), 20, 110, 29, MINT)
@@ -734,7 +764,7 @@ func _draw_game() -> void:
 	draw_line(Vector2(284, 89), Vector2(289, 89), ORANGE, 1.6, true)
 	_text("%02d:%02d" % [ceili(round_model.remaining) / 60, ceili(round_model.remaining) % 60], 300, 97, 19, ORANGE)
 	if round_model.combo > 1:
-		_text("COMBO ×%d" % round_model.combo, 195, 180, 35, ORANGE, true)
+		_draw_combo()
 	else:
 		_text("Enchaîne 3 touches pour un combo", 195, 170, 12, MUTED, true, false)
 	for i in range(9):

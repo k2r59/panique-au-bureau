@@ -1,0 +1,2 @@
+Generated with the built-in image generation tool from desks-atlas.png.
+Prompt: Improve the existing equal 3×3 office cubicle atlas with receding side partitions, thin warm mauve edges, visible wooden desktop top planes and shadowed drawers. Preserve distinct furniture and normalized laptop/desktop positions for character occlusion. Warm amber lamps, muted purple walls; no characters, text or UI. Keep nine equal square tiles tightly aligned.
