@@ -263,6 +263,7 @@ func _sync_buttons() -> void:
 	_sync_rank_avatars()
 	profile_button.visible = screen == "results" and player_name.strip_edges().length() >= 2
 	gift_button.visible = screen in ["home", "results"]
+	gift_button.position.x = 70 if profile_button.visible else 10
 	queue_redraw()
 	volume_button.icon = load("res://assets/ui/volume-on.svg" if sound_enabled else "res://assets/ui/volume-off.svg")
 	volume_button.set_pressed_no_signal(sound_enabled)
@@ -587,6 +588,7 @@ func _sync_cloud(score := -1) -> void:
 	_sync_rank_avatars()
 	profile_button.visible = screen == "results" and player_name.strip_edges().length() >= 2
 	gift_button.visible = screen in ["home", "results"]
+	gift_button.position.x = 70 if profile_button.visible else 10
 	queue_redraw()
 	if cloud_pending_score >= 0:
 		var pending := cloud_pending_score
