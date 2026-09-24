@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="780" height="490" viewBox="0 0 390 245">
+<!-- Small folded paper pieces, painted behind the entire hero illustration. -->
+<g stroke-width=".5">
+<path d="m45 37 5-2 3 9-5 2z" fill="#ffc34d" transform="rotate(-16 49 40)"/>
+<path d="m75 18 5 2-3 7-5-2z" fill="#d794ee"/>
+<path d="m119 11 6 1-1 5-6-1z" fill="#ff9150"/>
+<path d="m167 20 3-2 4 6-3 2z" fill="#a0f1c8"/>
+<path d="m228 10 5 1-1 7-5-1z" fill="#ffcc64"/>
+<path d="m268 24 5-3 3 5-5 3z" fill="#c69aef"/>
+<path d="m310 17 4 1-2 7-4-1z" fill="#ffbe54"/>
+<path d="m353 66 5-1 2 8-5 1z" fill="#a6f0cf"/>
+<path d="m365 107 5 2-3 6-5-2z" fill="#ffc85f"/>
+<path d="m341 151 4-2 3 6-4 2z" fill="#d692e8"/>
+<path d="m28 96 6 2-2 5-6-2z" fill="#adf3cd"/>
+<path d="m57 75 4-1 2 7-4 1z" fill="#ff9563"/>
+<path d="m42 142 5-2 3 5-5 2z" fill="#c99aef"/>
+<path d="m21 177 4 1-1 7-4-1z" fill="#ffd779"/>
+<path d="m357 192 5 2-2 4-5-2z" fill="#ffab65"/>
+</g>
+</svg>

@@ -43,6 +43,21 @@ func _initialize() -> void:
 	game.hit(0)
 	check(game.score == 0, "Score cannot go negative")
 	game.start()
+	game.spawn_in = 10
+	game.targets[0] = {"name": "ghost", "born": 0, "expires": 2}
+	game.hit(0)
+	check(game.targets[0].has("leaving"), "Hit character stays visible while descending")
+	check(game.hit(0).is_empty(), "Descending character cannot score twice")
+	game.advance(0.12)
+	check(not game.targets[0].is_empty(), "Character remains during exit animation")
+	game.advance(0.13)
+	check(game.targets[0].is_empty(), "Desk becomes available after descent")
+	game.targets[1] = {"name": "zombie", "born": 0, "expires": game.elapsed}
+	game.advance(0.01)
+	check(game.targets[1].has("leaving") and game.missed == 1, "Expired character descends and counts one miss")
+	game.advance(0.3)
+	check(game.targets[1].is_empty() and game.missed == 1, "Exit completion does not count a second miss")
+	game.start()
 	game.rng.seed = 42
 	for i in range(3600):
 		game.advance(1.0 / 60.0)

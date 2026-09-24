@@ -2,6 +2,7 @@ class_name OfficeRound
 extends RefCounted
 
 const DURATION := 60.0
+const EXIT_DURATION := 0.24
 const MONSTERS := ["ghost", "zombie", "vampire"]
 const POOL := ["ghost", "ghost", "zombie", "vampire", "candy", "colleague", "pumpkin"]
 var rng := RandomNumberGenerator.new()
@@ -51,11 +52,18 @@ func advance(delta: float) -> bool:
 			targets[i] = {}
 		return true
 	for i in range(9):
+		if targets[i].has("leaving"):
+			if elapsed >= float(targets[i].leaving) + EXIT_DURATION:
+				targets[i] = {}
+			continue
 		if not targets[i].is_empty() and float(targets[i].expires) <= elapsed:
 			if targets[i].name in MONSTERS:
 				missed += 1
 				reset_combo()
-			targets[i] = {}
+			if targets[i].name in ["candy", "pumpkin"]:
+				targets[i] = {}
+			else:
+				targets[i]["leaving"] = elapsed
 	spawn_in -= delta
 	if spawn_in <= 0.0:
 		var empty: Array[int] = []
@@ -70,10 +78,13 @@ func advance(delta: float) -> bool:
 	return false
 
 func hit(index: int) -> Dictionary:
-	if not playing or paused or index < 0 or index >= 9 or targets[index].is_empty():
+	if not playing or paused or index < 0 or index >= 9 or targets[index].is_empty() or targets[index].has("leaving"):
 		return {}
 	var target := targets[index]
-	targets[index] = {}
+	if target.name in ["candy", "pumpkin"]:
+		targets[index] = {}
+	else:
+		targets[index]["leaving"] = elapsed
 	var bad: bool = target.name in ["colleague", "pumpkin"]
 	var points := -100 if bad else (100 if target.name == "candy" else 50) * combo
 	score = maxi(0, score + points)

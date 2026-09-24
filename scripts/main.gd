@@ -120,8 +120,8 @@ func _ready() -> void:
 	_style_avatars()
 	for i in range(5):
 		var portrait := TextureRect.new()
-		portrait.position = Vector2(69, 399 + i * 45)
-		portrait.size = Vector2(34, 34)
+		portrait.position = Vector2(71, 401 + i * 45)
+		portrait.size = Vector2(30, 30)
 		portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -177,6 +177,7 @@ func _load_assets() -> void:
 	textures["trophy-perspective"] = load("res://assets/generated/trophy-perspective.png")
 	textures["trophy-shadow"] = load("res://assets/ui/trophy-shadow.svg")
 	textures["record-medal"] = load("res://assets/ui/record-medal.svg")
+	textures["celebration"] = load("res://assets/ui/celebration.svg")
 	textures["result-rays"] = load("res://assets/ui/result-rays.svg")
 	textures["game-guide"] = load("res://assets/ui/game-guide.svg")
 	for i in range(1, 7):
@@ -698,7 +699,16 @@ func _draw_desk(index: int) -> void:
 		var is_object: bool = target.name in ["candy", "pumpkin"]
 		var settle := (1.0 - clampf((round_model.elapsed - float(target.born)) / 0.14, 0, 1)) * 4 if motion_enabled else 0.0
 		if not is_object:
-			_sprite(target.name, Rect2(rect.position + Vector2(2, -4 + settle), Vector2(116, 116)), index)
+			var descent := 0.0
+			if target.has("leaving"):
+				var progress := clampf((round_model.elapsed - float(target.leaving)) / RoundModel.EXIT_DURATION, 0, 1)
+				descent = 114.0 * progress * progress if motion_enabled else 114.0
+			var destination := Rect2(rect.position + Vector2(2, -4 + settle + descent), Vector2(116, 116))
+			var visible_rect := destination.intersection(rect)
+			if visible_rect.has_area():
+				var texture: Texture2D = textures[target.name]
+				var source_rect := Rect2((visible_rect.position - destination.position) / destination.size * texture.get_size(), visible_rect.size / destination.size * texture.get_size())
+				draw_texture_rect_region(texture, visible_rect, source_rect)
 		# Redraw furniture over the target using atlas regions; no new bitmap copies.
 		var occluders := [Rect2(0, 0.79, 1, 0.21), Rect2(0.31, 0.51, 0.41, 0.29), Rect2(0, 0.56, 0.28, 0.24), Rect2(0.80, 0.55, 0.20, 0.25)]
 		for box in occluders:
@@ -757,11 +767,10 @@ func _score_label(value: int) -> String:
 
 func _draw_results() -> void:
 	var ranking: Array = cloud_records if cloud_available else records
+	_pic("celebration", Rect2(0, 0, 390, 245), 1, false)
 	draw_set_transform(fit_offset + Vector2(29, 0) * fit_scale, 0, Vector2.ONE * fit_scale * 0.85)
 	_hero(5, true)
 	draw_set_transform(fit_offset, 0, Vector2.ONE * fit_scale)
-	for i in range(10):
-		_pic("confetti-" + ["orange", "mint", "purple", "cream"][i % 4], Rect2(47 + fmod(i * 79.0, 298), 28 + fmod(i * 43.0, 150), 5, 9))
 	var title := "Nouveau record !" if new_record else "Bien joué, %s !" % player_name.left(10)
 	var title_width := display_font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, 30).x
 	draw_string_outline(display_font, Vector2(195 - title_width / 2, 277), title, HORIZONTAL_ALIGNMENT_LEFT, -1, 30, 6, Color("1a0c24"))
@@ -788,7 +797,7 @@ func _draw_results() -> void:
 		if i >= 3:
 			_text(str(i + 1), 44, y + 23, 14, CREAM, true)
 		if i < ranking.size():
-			draw_circle(Vector2(86, y + 17), 18, Color("ba96cd"), true, -1, true)
+			draw_circle(Vector2(86, y + 17), 16.5, Color("ffe7a3") if active else Color("ba96cd"), true, -1, true)
 			_text(str(ranking[i].get("name", "Moi")).left(13), 117, y + 24, 15)
 			_text(_score_label(int(ranking[i].score)), 326, y + 24, 17, CREAM, true)
 		else:
