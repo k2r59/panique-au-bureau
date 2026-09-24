@@ -1,0 +1,10 @@
+.godot/
+build/
+.DS_Store
+*.tmp
+
+# Local portraits no longer used in the game.
+assets/photos/
+.env
+.env.*
+!.env.example
