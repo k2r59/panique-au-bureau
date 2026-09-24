@@ -52,10 +52,8 @@ func run() -> void:
 	game._submit_name()
 	check(game.player_name == "Camille", "Nickname accepted")
 	check(game.countdown == 3 and game.screen == "game", "Start opens countdown")
-	game._notification(Node.NOTIFICATION_APPLICATION_FOCUS_OUT)
-	check(game.round_model.paused, "Focus loss pauses countdown")
-	game._primary()
-	check(not game.round_model.paused, "Countdown can resume")
+	game.notification(Node.NOTIFICATION_APPLICATION_FOCUS_OUT)
+	check(not game.round_model.paused, "Focus loss cannot pause the game")
 	game._process(3.1)
 	check(game.countdown == 0 and game.cell_buttons[0].visible, "Countdown unlocks board")
 	for i in range(6):
@@ -63,12 +61,15 @@ func run() -> void:
 	await snap("game")
 	game.cell_buttons[0].pressed.emit()
 	check(game.round_model.score == 50, "Button scores")
-	game._pause()
 	var before: float = game.round_model.remaining
-	game._process(5)
-	check(game.round_model.remaining == before, "Pause freezes time")
-	await snap("pause")
-	game._pause()
+	for key in [KEY_P, KEY_ESCAPE]:
+		var event := InputEventKey.new()
+		event.pressed = true
+		event.keycode = key
+		game._input(event)
+	game.last_frame_ms = Time.get_ticks_msec() - 5000
+	game._process(0.016)
+	check(game.round_model.remaining <= before - 5, "Elapsed background time counts; P and Escape cannot pause")
 	game._process(60)
 	check(game.screen == "results" and game.records.size() > 0, "Results save a finished round")
 	game.result_age = 2

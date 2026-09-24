@@ -28,12 +28,13 @@ var error_age := 10.0
 var last_second := 60
 var primary: Button
 var volume_button: Button
-var pause_button: Button
+var last_frame_ms := Time.get_ticks_msec()
 var cell_buttons: Array[Button] = []
 var players: Array[AudioStreamPlayer] = []
 var player_name := ""
 var player_avatar := 1
 var avatar_buttons: Array[Button] = []
+var ranking_portraits: Array[TextureRect] = []
 var avatar_scroll: ScrollContainer
 var avatar_dragging := false
 var avatar_drag_moved := false
@@ -65,7 +66,6 @@ func _ready() -> void:
 		player.volume_db = -12
 		add_child(player)
 		players.append(player)
-	pause_button = _button(Rect2(348, 121, 30, 30), "Ⅱ", _pause, "Pause · P ou Échap")
 	for i in range(9):
 		var button := _button(_cell(i), "", _hit.bind(i), "Case %d · touche %d" % [i + 1, i + 1], true)
 		cell_buttons.append(button)
@@ -118,6 +118,19 @@ func _ready() -> void:
 		avatar_row.add_child(avatar_button)
 		avatar_buttons.append(avatar_button)
 	_style_avatars()
+	for i in range(5):
+		var portrait := TextureRect.new()
+		portrait.position = Vector2(69, 399 + i * 45)
+		portrait.size = Vector2(34, 34)
+		portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var material := ShaderMaterial.new()
+		material.shader = preload("res://assets/ui/rounded-portrait.gdshader")
+		material.set_shader_parameter("radius", 0.5)
+		portrait.material = material
+		ui_layer.add_child(portrait)
+		ranking_portraits.append(portrait)
 	primary = _button(Rect2(58, 708, 274, 63), "JOUER", _primary, "Commencer une partie", true)
 	_create_volume_button()
 	_fit_view()
@@ -159,7 +172,13 @@ func _load_assets() -> void:
 		textures[name] = load("res://assets/components/%s.png" % name)
 	for name in ["play", "replay", "crown"]:
 		textures[name] = load("res://assets/ui/%s.png" % name)
+	textures["replay"] = load("res://assets/ui/replay-polished.svg")
 	textures["play"] = load("res://assets/ui/play-polished.svg")
+	textures["trophy-perspective"] = load("res://assets/generated/trophy-perspective.png")
+	textures["trophy-shadow"] = load("res://assets/ui/trophy-shadow.svg")
+	textures["record-medal"] = load("res://assets/ui/record-medal.svg")
+	textures["result-rays"] = load("res://assets/ui/result-rays.svg")
+	textures["game-guide"] = load("res://assets/ui/game-guide.svg")
 	for i in range(1, 7):
 		textures["avatar-%d" % i] = load("res://assets/webp/avatar-%d.webp" % i)
 	for i in range(1, 6):
@@ -200,33 +219,36 @@ func _button(rect: Rect2, caption: String, callback: Callable, hint: String, inv
 	ui_layer.add_child(button)
 	return button
 
+func _sync_rank_avatars() -> void:
+	var ranking: Array = cloud_records if cloud_available else records
+	for i in range(ranking_portraits.size()):
+		ranking_portraits[i].visible = screen == "results" and i < ranking.size()
+		if i < ranking.size():
+			ranking_portraits[i].texture = textures["avatar-%d" % clampi(int(ranking[i].get("avatar", 1)), 1, 6)]
+
 func _sync_buttons() -> void:
+	_sync_rank_avatars()
 	queue_redraw()
 	volume_button.icon = load("res://assets/ui/volume-on.svg" if sound_enabled else "res://assets/ui/volume-off.svg")
 	volume_button.set_pressed_no_signal(sound_enabled)
 	volume_button.tooltip_text = "Désactiver le son" if sound_enabled else "Activer le son"
 	name_input.visible = screen == "profile"
 	avatar_scroll.visible = screen == "profile"
-	pause_button.visible = screen == "game"
-	pause_button.disabled = screen != "game" or countdown > 0
-	pause_button.text = "▶" if round_model.paused else "Ⅱ"
 	for button in cell_buttons:
-		button.visible = screen == "game" and not round_model.paused and countdown <= 0
-	primary.visible = screen != "game" or round_model.paused
+		button.visible = screen == "game" and countdown <= 0
+	primary.visible = screen != "game"
+	volume_button.modulate.a = 0.35 if screen == "game" and countdown > 0 else 1.0
 	primary.position = Vector2(58, 708) if screen == "home" else Vector2(58, 767)
-	primary.size = Vector2(274, 55 if screen == "results" else 63)
+	primary.size = Vector2(274, 63)
+	if screen == "results":
+		primary.position = Vector2(58, 720)
 	primary.text = "JOUER" if screen == "home" else "Rejouer"
 	if screen == "profile":
 		primary.position = Vector2(58, 720)
 		primary.text = "C’EST PARTI !"
-	if round_model.paused and screen == "game":
-		primary.position = Vector2(58, 441)
-		primary.text = "Reprendre"
 
 func _primary() -> void:
-	if screen == "game" and round_model.paused:
-		_pause()
-	elif screen == "profile":
+	if screen == "profile":
 		_submit_name()
 	elif player_name.strip_edges().length() >= 2:
 		_start_game()
@@ -258,6 +280,7 @@ func _submit_name() -> void:
 func _start_game() -> void:
 	round_model.start()
 	screen = "game"
+	last_frame_ms = Time.get_ticks_msec()
 	countdown = 3.0
 	effects.clear()
 	combo_age = 10.0
@@ -273,18 +296,6 @@ func _go_home() -> void:
 	countdown = 0.0
 	effects.clear()
 	_sync_buttons()
-
-func _pause() -> void:
-	if screen != "game" or (countdown > 0 and not round_model.paused):
-		return
-	round_model.paused = not round_model.paused
-	_sync_buttons()
-
-func _notification(what: int) -> void:
-	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and screen == "game":
-		round_model.paused = true
-		if is_instance_valid(primary):
-			_sync_buttons()
 
 func _toggle_sound() -> void:
 	sound_enabled = not sound_enabled
@@ -357,9 +368,7 @@ func _input(event: InputEvent) -> void:
 		return
 	if screen == "profile" and name_input.has_focus():
 		return
-	if event.keycode in [KEY_P, KEY_ESCAPE]:
-		_pause()
-	elif event.keycode == KEY_ENTER and primary.visible and not avatar_buttons.has(get_viewport().gui_get_focus_owner()):
+	if event.keycode == KEY_ENTER and primary.visible and not avatar_buttons.has(get_viewport().gui_get_focus_owner()):
 		_primary()
 		get_viewport().set_input_as_handled()
 	elif screen == "game":
@@ -372,28 +381,32 @@ func _input(event: InputEvent) -> void:
 			_hit((2 - n / 3) * 3 + n % 3)
 
 func _process(delta: float) -> void:
+	var now := Time.get_ticks_msec()
+	var elapsed := maxf(delta, (now - last_frame_ms) / 1000.0)
+	last_frame_ms = now
 	clock += delta
-	if screen == "game" and not round_model.paused:
+	if screen == "game":
+		var play_elapsed := elapsed
 		if countdown > 0:
 			var before := ceili(countdown)
-			countdown = maxf(0, countdown - delta)
+			play_elapsed = maxf(0, elapsed - countdown)
+			countdown = maxf(0, countdown - elapsed)
 			if ceili(countdown) != before:
 				_play("countdown")
 			if countdown <= 0:
 				_sync_buttons()
-		else:
-			if round_model.advance(delta):
+		if play_elapsed > 0:
+			if round_model.advance(play_elapsed):
 				_finish()
 			var second := ceili(round_model.remaining)
 			if second <= 10 and second != last_second and second > 0:
 				_play("countdown")
 			last_second = second
-	if not round_model.paused:
-		combo_age += delta
-		error_age += delta
-		for effect in effects:
-			effect.age += delta
-		effects = effects.filter(func(e): return e.age < 0.75)
+	combo_age += delta
+	error_age += delta
+	for effect in effects:
+		effect.age += delta
+	effects = effects.filter(func(e): return e.age < 0.75)
 	result_age += delta
 	queue_redraw()
 
@@ -512,6 +525,7 @@ func _sync_cloud(score := -1) -> void:
 	else:
 		cloud_available = false
 	cloud_busy = false
+	_sync_rank_avatars()
 	queue_redraw()
 	if cloud_pending_score >= 0:
 		var pending := cloud_pending_score
@@ -519,7 +533,7 @@ func _sync_cloud(score := -1) -> void:
 		_sync_cloud(pending)
 
 func _cell(i: int) -> Rect2:
-	return Rect2(12 + (i % 3) * 123, 229 + (i / 3) * 126, 120, 124)
+	return Rect2(12 + (i % 3) * 123, 200 + (i / 3) * 135, 120, 133)
 
 func _pic(name: String, rect: Rect2, alpha := 1.0, fitted := true) -> void:
 	var texture: Texture2D = textures.get(name)
@@ -553,7 +567,7 @@ func _action(rect: Rect2, caption: String) -> void:
 	var has_icon := caption in ["JOUER", "Rejouer"]
 	var label_size := 32 if caption == "JOUER" else 30
 	var label_width := display_font.get_string_size(caption, HORIZONTAL_ALIGNMENT_LEFT, -1, label_size).x
-	var icon_size := 30.0 if caption == "JOUER" else 22.0
+	var icon_size := 30.0
 	var gap := 12.0
 	var group_width := label_width + (icon_size + gap if has_icon else 0.0)
 	var start_x := rect.get_center().x - group_width / 2.0
@@ -587,25 +601,25 @@ func _draw() -> void:
 		if motion_enabled:
 			var radius := 22 + progress * 9
 			_pic("tap-ring", Rect2(point - Vector2.ONE * radius, Vector2.ONE * radius * 2), (1 - progress) * 0.4)
-	if screen == "game" and (round_model.paused or countdown > 0):
-		draw_rect(Rect2(0, 60, 390, 784), Color(0.05, 0.02, 0.08, 0.87))
-		if round_model.paused:
-			_text("Pause café", 195, 364, 30, CREAM, true)
-			_text("Les monstres peuvent attendre.", 195, 398, 13, MUTED, true, false)
-			_action(Rect2(58, 441, 274, 63), "Reprendre")
-		else:
-			_text(str(ceili(countdown)), 195, 414, 92, ORANGE, true)
-			_text("Prépare-toi !", 195, 465, 20, CREAM, true)
+	if screen == "game" and countdown > 0:
+		draw_set_transform(Vector2.ZERO)
+		draw_rect(Rect2(Vector2.ZERO, size), Color(0.05, 0.02, 0.08, 0.87))
+		draw_set_transform(fit_offset, 0, Vector2.ONE * fit_scale)
+		_text(str(ceili(countdown)), 195, 414, 92, ORANGE, true)
+		_text("Prépare-toi !", 195, 465, 20, CREAM, true)
 
 func _hero(y: float, trophy := false) -> void:
 	var bob := sin(clock * TAU / 4.8) * 6.0 if motion_enabled else 0.0
 	_pic("bat", Rect2(45, y + 37, 49, 30), 0.8)
 	_sprite("ghost", Rect2(65, y + bob, 254, 254))
-	if trophy:
-		_pic("trophy", Rect2(271, y + 36, 85, 102))
 	_pic("welcome-desk", Rect2(-4, y + 111, 398, 196))
 	_pic("halo", Rect2(-8, y + 168, 100, 100), 0.65)
 	_pic("welcome-pumpkin", Rect2(6, y + 174, 76, 70))
+	if trophy:
+		var float_y := sin(clock * TAU / 4.6 + 1.1) * 5.0 if motion_enabled else 0.0
+		var shadow_width := 76.0 + float_y * 1.5
+		_pic("trophy-shadow", Rect2(314 - shadow_width / 2, y + 263, shadow_width, 19), 0.62 + float_y * 0.025, false)
+		_pic("trophy-perspective", Rect2(255, y + 22 + float_y, 123, 146))
 
 func _draw_home() -> void:
 	_hero(24)
@@ -622,8 +636,8 @@ func _draw_home() -> void:
 		if i == 2:
 			_pic("pumpkin", Rect2(70, y + 40, 40, 40))
 		_text(rows[i][1], 115, y + 28, 15)
-		_text(rows[i][2], 115, y + 50, 11, CREAM, false, false)
-		_text(rows[i][3], 115, y + 67, 11, CREAM, false, false)
+		_text(rows[i][2], 115, y + 50, 13, CREAM, false, false)
+		_text(rows[i][3], 115, y + 67, 13, CREAM, false, false)
 	_action(Rect2(58, 708, 274, 63), "JOUER")
 
 func _avatar_rect(index: int) -> Rect2:
@@ -684,7 +698,7 @@ func _draw_desk(index: int) -> void:
 		var is_object: bool = target.name in ["candy", "pumpkin"]
 		var settle := (1.0 - clampf((round_model.elapsed - float(target.born)) / 0.14, 0, 1)) * 4 if motion_enabled else 0.0
 		if not is_object:
-			_sprite(target.name, Rect2(rect.position + Vector2(8, 1 + settle), Vector2(104, 104)), index)
+			_sprite(target.name, Rect2(rect.position + Vector2(2, -4 + settle), Vector2(116, 116)), index)
 		# Redraw furniture over the target using atlas regions; no new bitmap copies.
 		var occluders := [Rect2(0, 0.79, 1, 0.21), Rect2(0.31, 0.51, 0.41, 0.29), Rect2(0, 0.56, 0.28, 0.24), Rect2(0.80, 0.55, 0.20, 0.25)]
 		for box in occluders:
@@ -715,54 +729,84 @@ func _draw_game() -> void:
 		_text("Enchaîne 3 touches pour un combo", 195, 170, 12, MUTED, true, false)
 	for i in range(9):
 		_draw_desk(i)
-	_pic("legend-card", Rect2(12, 635, 180, 77), 1, false)
-	_pic("legend-card", Rect2(198, 635, 180, 77), 1, false)
-	_sprite("ghost", Rect2(18, 646, 48, 48))
-	_sprite("candy", Rect2(51, 662, 34, 34))
-	_text("À attraper", 91, 667, 12, MINT)
-	_text("= des points !", 91, 687, 10, CREAM, false, false)
-	_sprite("colleague", Rect2(201, 646, 47, 48))
-	_pic("pumpkin", Rect2(235, 665, 29, 30))
-	_text("À éviter", 270, 667, 12, Color("ff9780"))
-	_text("−100 points", 270, 687, 10, CREAM, false, false)
-	_pic("crown", Rect2(90, 765, 25, 25))
-	_text("Record : %d" % record, 214, 786, 16, MUTED, true)
-	_text("Clavier 1–9 · Pause P", 185, 827, 9, MUTED, true, false)
+	_pic("game-guide", Rect2(12, 628, 366, 106), 1, false)
+	_text("ATTRAPE !", 104, 648, 14, MINT, true)
+	_text("ÉVITE !", 286, 648, 14, Color("ffab91"), true)
+	_sprite("ghost", Rect2(51, 651, 49, 49))
+	_sprite("candy", Rect2(110, 657, 41, 41))
+	_sprite("colleague", Rect2(232, 651, 49, 49))
+	_sprite("pumpkin", Rect2(291, 657, 41, 41))
+	_text("+50 / +100 pts", 104, 718, 10, MINT, true)
+	_text("−100 pts", 286, 718, 10, Color("ffab91"), true)
+	_capsule(Rect2(82, 754, 226, 53), Color("25172e"), Color("74523e"))
+	_pic("record-medal", Rect2(89, 758, 46, 46))
+	_text("MEILLEUR SCORE", 216, 772, 9, Color("e5c59d"), true)
+	_text("%d pts" % record, 216, 796, 22, Color("ffe1a1"), true)
+	_text("Clavier : touches 1 à 9", 195, 829, 9, MUTED, true, false)
 	if error_age < 0.2:
 		draw_rect(Rect2(0, 58, 390, 786), Color(1, 0.2, 0.2, 0.08))
 
+func _score_label(value: int) -> String:
+	var digits := str(value)
+	var label := ""
+	for i in range(digits.length()):
+		if i > 0 and (digits.length() - i) % 3 == 0:
+			label += " "
+		label += digits[i]
+	return label
+
 func _draw_results() -> void:
 	var ranking: Array = cloud_records if cloud_available else records
-	_hero(25, true)
-	_text("Nouveau record !" if new_record else "Bien joué, %s !" % player_name.left(12), 195, 338, 26, CREAM, true)
-	_pic("score-burst", Rect2(26, 344, 338, 86))
-	var count := int(round_model.score * minf(1, result_age / 0.85)) if motion_enabled else int(round_model.score)
-	_text(str(count), 174, 412, 52, MINT, true)
-	_text("pts", 287, 409, 22)
-	_text("Ton meilleur score compte", 195, 447, 14, CREAM, true, false)
-	_panel(Rect2(18, 469, 354, 224))
+	draw_set_transform(fit_offset + Vector2(29, 0) * fit_scale, 0, Vector2.ONE * fit_scale * 0.85)
+	_hero(5, true)
+	draw_set_transform(fit_offset, 0, Vector2.ONE * fit_scale)
+	for i in range(10):
+		_pic("confetti-" + ["orange", "mint", "purple", "cream"][i % 4], Rect2(47 + fmod(i * 79.0, 298), 28 + fmod(i * 43.0, 150), 5, 9))
+	var title := "Nouveau record !" if new_record else "Bien joué, %s !" % player_name.left(10)
+	var title_width := display_font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, 30).x
+	draw_string_outline(display_font, Vector2(195 - title_width / 2, 277), title, HORIZONTAL_ALIGNMENT_LEFT, -1, 30, 6, Color("1a0c24"))
+	_text(title, 195, 277, 30, CREAM, true)
+	var score_text := _score_label(round_model.score)
+	var score_size := 64 if score_text.length() < 6 else 54
+	var number_width := display_font.get_string_size(score_text, HORIZONTAL_ALIGNMENT_LEFT, -1, score_size).x
+	var unit_width := display_font.get_string_size("pts", HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x
+	var score_x := 195 - (number_width + 9 + unit_width) / 2
+	_pic("result-rays", Rect2(24, 298, 342, 48), 1, false)
+	_text(score_text, score_x + 1, 347, score_size, Color("16423c"))
+	_text(score_text, score_x, 343, score_size, MINT)
+	_text("pts", score_x + number_width + 9, 335, 24, CREAM)
+	_text("Ton meilleur score compte", 195, 374, 14, CREAM, true, false)
+	_panel(Rect2(18, 389, 354, 237))
 	for i in range(5):
-		var y := 478 + i * 42
+		var y := 399 + i * 45
 		var active: bool = i < ranking.size() and (str(ranking[i].get("id", "")) == cloud_user_id if cloud_available else str(ranking[i].get("name", "Moi")).to_lower() == player_name.to_lower())
 		if active:
-			_pic("leaderboard-row-active", Rect2(20, y - 3, 350, 42), 1, false)
+			_pic("leaderboard-row-active", Rect2(20, y - 5, 350, 45), 1, false)
 		elif i > 0:
-			draw_line(Vector2(30, y - 4), Vector2(360, y - 4), Color("52385f"), 1)
-		_pic("rank-%d" % (i + 1 if i < 3 else 0), Rect2(28, y, 31, 31))
+			draw_line(Vector2(30, y - 5), Vector2(360, y - 5), Color("52385f"), 1)
+		_pic("rank-%d" % (i + 1 if i < 3 else 0), Rect2(28, y, 33, 33))
 		if i >= 3:
-			_text(str(i + 1), 43, y + 22, 14, CREAM, true)
+			_text(str(i + 1), 44, y + 23, 14, CREAM, true)
 		if i < ranking.size():
-			_pic("avatar-%d" % clampi(int(ranking[i].get("avatar", 1)), 1, 6), Rect2(65, y, 32, 32))
-			_text(str(ranking[i].get("name", "Moi")).left(13), 110, y + 22, 13)
-			_text(str(ranking[i].score), 317, y + 22, 15, CREAM, true)
+			draw_circle(Vector2(86, y + 17), 18, Color("ba96cd"), true, -1, true)
+			_text(str(ranking[i].get("name", "Moi")).left(13), 117, y + 24, 15)
+			_text(_score_label(int(ranking[i].score)), 326, y + 24, 17, CREAM, true)
 		else:
-			_text("À toi de jouer…", 80, y + 22, 12, MUTED, false, false)
-	_pic("next-rank-card", Rect2(18, 701, 354, 52), 1, false)
-	_text("Ton record : %d pts" % _personal_record(), 195, 724, 13, MINT, true)
-	_text("%d attrapés · %d erreurs · Combo ×%d" % [round_model.caught, round_model.mistakes, round_model.best_combo], 195, 743, 10, MUTED, true, false)
-	_action(Rect2(58, 767, 274, 55), "Rejouer")
-	_text("Classement en ligne" if cloud_available else ("Classement local" if save_available else "Sauvegarde indisponible"), 195, 839, 9, MUTED, true, false)
-	if new_record and motion_enabled and result_age < 2:
-		for i in range(10):
-			var y := result_age * 65 + i * 16 + 55
-			_pic("confetti-" + ["orange", "mint", "purple", "cream"][i % 4], Rect2(fmod(i * 83.0, 380), y, 6, 12))
+			_text("À toi de jouer…", 117, y + 24, 12, MUTED, false, false)
+	_pic("next-rank-card", Rect2(18, 637, 354, 64), 1, false)
+	var next_player: Dictionary = {}
+	for entry in ranking:
+		if int(entry.score) > _personal_record():
+			if next_player.is_empty() or int(entry.score) < int(next_player.score):
+				next_player = entry
+	if not next_player.is_empty():
+		draw_polyline(PackedVector2Array([Vector2(44, 681), Vector2(51, 665), Vector2(59, 671), Vector2(70, 652)]), Color("ffd26a"), 4, true)
+		draw_polyline(PackedVector2Array([Vector2(61, 654), Vector2(70, 652), Vector2(70, 662)]), Color("ffd26a"), 4, true)
+		_text("Plus que %s points" % _score_label(int(next_player.score) - _personal_record() + 1), 220, 662, 14, MINT, true)
+		_text("pour dépasser %s !" % str(next_player.name).left(12), 220, 684, 12, CREAM, true, false)
+	else:
+		_pic("record-medal", Rect2(40, 647, 43, 43))
+		_text("Ton record : %d pts" % _personal_record(), 224, 662, 14, MINT, true)
+		_text("À toi de faire encore mieux !", 224, 684, 12, CREAM, true, false)
+	_action(Rect2(58, 720, 274, 63), "Rejouer")
+	_text("Classement en ligne" if cloud_available else ("Classement local" if save_available else "Sauvegarde indisponible"), 195, 810, 10, MUTED, true, false)

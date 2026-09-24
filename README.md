@@ -11,7 +11,7 @@ Jeu de réflexes réalisé avec Godot 4.7.2, en GDScript. Le projet utilise les 
 
 Chaque partie dure 60 secondes, après un décompte de trois secondes. Toucher les monstres rapporte 50 points ; les bonbons rapportent 100 points. Le multiplicateur augmente toutes les trois touches réussies, jusqu’à ×5. Toucher un collègue ou une citrouille retire 100 points et annule le combo. Laisser partir un monstre annule aussi le combo. Le score reste positif ou nul.
 
-Cliquer ou toucher une case pour jouer. Les touches de la rangée **1 à 9** correspondent aux cases de gauche à droite et de haut en bas, y compris sur un clavier AZERTY. Le pavé numérique suit sa disposition habituelle. **P** ou **Échap** met en pause. **Entrée** lance une partie ou reprend la partie en pause. Le jeu se met en pause lorsqu’il perd le focus.
+Cliquer ou toucher une case pour jouer. Les touches de la rangée **1 à 9** correspondent aux cases de gauche à droite et de haut en bas, y compris sur un clavier AZERTY. Le pavé numérique suit sa disposition habituelle. **Entrée** lance une partie. Il n’y a pas de pause : le temps écoulé continue de compter même si la fenêtre perd le focus ou si le navigateur suspend son affichage.
 
 Les personnages gardent une pose fixe ; seuls les retours de touche et une courte arrivée de la cible bougent. Le son est coupé au premier lancement. Le meilleur score de chaque pseudo et les préférences sont enregistrés sur l’appareil, dans `user://records.json`. Le classement affiche les cinq meilleurs pseudos ; le jeu conserve jusqu’à 100 pseudos sur l’appareil. Le navigateur conserve ses propres records, séparés de ceux du jeu natif. Effacer les données du site supprime ces records.
 
@@ -50,7 +50,7 @@ Depuis le dossier du projet :
 /Applications/Godot.app/Contents/MacOS/Godot --path . --script tests/smoke.gd
 ```
 
-Le premier test vérifie le score, les combos, les pièges, les cibles expirées, la pause et la fin de partie. Le second lance les scènes, vérifie les commandes et la sauvegarde, puis produit cinq captures dans `build/`. Il restaure les records présents avant le test.
+Le premier test vérifie le score, les combos, les pièges, les cibles expirées, la pause et la fin de partie. Le second lance les scènes, vérifie les commandes et la sauvegarde, puis produit quatre captures dans `build/`. Il restaure les records présents avant le test.
 
 Les tests passent sur ce Mac. `tests/responsive.gd` vérifie les quatre vues sur cinq formats, de 320 × 568 à 430 × 932 et en paysage. La page web occupe la zone visible sans défilement ; les commandes respectent les marges de sécurité du téléphone. L’export web a été lancé dans le navigateur intégré de Codex. L’absence de défilement a été vérifiée à 320 × 568, 390 × 844 et 430 × 932. Le rapport indépendant figure dans `QA.md`. La fluidité et l’installation sur un véritable iPhone ou Android restent à vérifier. La version Canvas sera envisagée si les essais sur les appareils cibles montrent des ralentissements.
 

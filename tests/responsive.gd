@@ -6,6 +6,11 @@ func run() -> void:
 	var game = load("res://scenes/main.tscn").instantiate()
 	root.add_child(game)
 	game.set_process(false)
+	game.player_name = "Alexandre Martin"
+	game.player_avatar = 6
+	game.records = [{"name":"Sophie","avatar":1,"score":100000},{"name":"Alexandre Martin","avatar":6,"score":99900},{"name":"Thomas","avatar":2,"score":4850}]
+	game.record = 100000
+	game.new_record = false
 	for resolution in [Vector2i(320, 568), Vector2i(390, 844), Vector2i(430, 932), Vector2i(360, 800), Vector2i(844, 390)]:
 		root.size = resolution
 		await process_frame
@@ -13,6 +18,9 @@ func run() -> void:
 		game._fit_view()
 		for page in ["home", "profile", "game", "results"]:
 			game.round_model.start()
+			game.round_model.score = 99900
+			for i in range(6):
+				game.round_model.targets[i] = {"name": ["ghost", "candy", "zombie", "colleague", "vampire", "pumpkin"][i], "born": -1, "expires": 2}
 			game.screen = page
 			game._sync_buttons()
 			var bounds := Rect2(game.fit_offset, Vector2(390, 844) * game.fit_scale)

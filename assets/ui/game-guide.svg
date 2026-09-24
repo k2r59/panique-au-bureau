@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="732" height="212" viewBox="0 0 366 106">
+<defs>
+<linearGradient id="base" x2="0" y2="1"><stop stop-color="#332040"/><stop offset="1" stop-color="#170d23"/></linearGradient>
+<radialGradient id="mint"><stop stop-color="#69e8b5" stop-opacity=".15"/><stop offset="1" stop-color="#69e8b5" stop-opacity="0"/></radialGradient>
+<radialGradient id="coral"><stop stop-color="#ff9568" stop-opacity=".15"/><stop offset="1" stop-color="#ff9568" stop-opacity="0"/></radialGradient>
+<linearGradient id="divider" x2="0" y2="1"><stop stop-color="#9167a3" stop-opacity="0"/><stop offset=".5" stop-color="#9167a3" stop-opacity=".5"/><stop offset="1" stop-color="#9167a3" stop-opacity="0"/></linearGradient>
+</defs>
+<rect x="1" y="3" width="364" height="102" rx="22" fill="#08040f" opacity=".5"/>
+<rect x="1" y="1" width="364" height="100" rx="22" fill="url(#base)" stroke="#644371" stroke-width="1"/>
+<ellipse cx="92" cy="48" rx="84" ry="46" fill="url(#mint)"/>
+<ellipse cx="274" cy="48" rx="84" ry="46" fill="url(#coral)"/>
+<path d="M22 2H344" stroke="#b383c6" stroke-opacity=".22" stroke-linecap="round"/>
+<path d="M183 13V91" stroke="url(#divider)"/>
+<rect x="49" y="77" width="86" height="18" rx="9" fill="#15372f"/>
+<rect x="239" y="77" width="70" height="18" rx="9" fill="#45212f"/>
+</svg>
