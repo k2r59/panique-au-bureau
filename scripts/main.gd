@@ -29,6 +29,10 @@ var error_age := 10.0
 var last_second := 60
 var primary: Button
 var volume_button: Button
+var profile_button: Button
+var gift_button: Button
+var editing_profile := false
+var return_screen := "home"
 var last_frame_ms := Time.get_ticks_msec()
 var cell_buttons: Array[Button] = []
 var players: Array[AudioStreamPlayer] = []
@@ -134,6 +138,8 @@ func _ready() -> void:
 		ranking_portraits.append(portrait)
 	primary = _button(Rect2(58, 708, 274, 63), "JOUER", _primary, "Commencer une partie", true)
 	_create_volume_button()
+	profile_button = _header_button(206, "profile-button", _edit_profile, "Modifier mon profil")
+	gift_button = _header_button(266, "gift-button", _open_gifts, "Voir les dotations")
 	_fit_view()
 	_sync_buttons()
 	_configure_cloud()
@@ -148,6 +154,28 @@ func _create_volume_button() -> void:
 	volume_button.add_theme_color_override("icon_pressed_color", Color.WHITE)
 	volume_button.add_theme_color_override("icon_hover_color", Color(1.12, 1.08, 1.12))
 	volume_button.add_theme_color_override("icon_hover_pressed_color", Color(1.12, 1.08, 1.12))
+
+func _header_button(x: float, asset: String, callback: Callable, label: String) -> Button:
+	var button := _button(Rect2(x, 5, 54, 56), "", callback, label, true)
+	button.icon = load("res://assets/ui/%s.svg" % asset)
+	button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	for state in ["normal", "hover", "pressed"]:
+		button.add_theme_stylebox_override(state, StyleBoxEmpty.new())
+	button.add_theme_color_override("icon_hover_color", Color(1.12, 1.08, 1.12))
+	return button
+
+func _edit_profile() -> void:
+	return_screen = screen
+	editing_profile = true
+	screen = "profile"
+	name_error = ""
+	name_input.text = player_name
+	_sync_buttons()
+
+func _open_gifts() -> void:
+	return_screen = screen
+	screen = "gifts"
+	_sync_buttons()
 
 func _fit_view() -> void:
 	var safe_origin := Vector2.ZERO
@@ -178,6 +206,7 @@ func _load_assets() -> void:
 	textures["trophy-perspective"] = load("res://assets/generated/trophy-perspective.png")
 	textures["trophy-shadow"] = load("res://assets/ui/trophy-shadow.svg")
 	textures["record-medal"] = load("res://assets/ui/record-medal.svg")
+	textures["gift-button"] = load("res://assets/ui/gift-button.svg")
 	textures["celebration"] = load("res://assets/ui/celebration.svg")
 	textures["result-rays"] = load("res://assets/ui/result-rays.svg")
 	textures["game-guide"] = load("res://assets/ui/game-guide.svg")
@@ -229,7 +258,11 @@ func _sync_rank_avatars() -> void:
 			ranking_portraits[i].texture = textures["avatar-%d" % clampi(int(ranking[i].get("avatar", 1)), 1, 6)]
 
 func _sync_buttons() -> void:
+	if OS.has_feature("web"):
+		JavaScriptBridge.eval("window.dispatchEvent(new CustomEvent('panique-screen', {detail: %s}));" % JSON.stringify(screen))
 	_sync_rank_avatars()
+	profile_button.visible = screen in ["home", "results"]
+	gift_button.visible = screen in ["home", "results"]
 	queue_redraw()
 	volume_button.icon = load("res://assets/ui/volume-on.svg" if sound_enabled else "res://assets/ui/volume-off.svg")
 	volume_button.set_pressed_no_signal(sound_enabled)
@@ -247,9 +280,16 @@ func _sync_buttons() -> void:
 	primary.text = "JOUER" if screen == "home" else "Rejouer"
 	if screen == "profile":
 		primary.position = Vector2(58, 720)
-		primary.text = "C’EST PARTI !"
+		primary.text = "ENREGISTRER" if editing_profile else "C’EST PARTI !"
+	if screen == "gifts":
+		primary.position = Vector2(58, 736)
+		primary.text = "RETOUR"
 
 func _primary() -> void:
+	if screen == "gifts":
+		screen = return_screen
+		_sync_buttons()
+		return
 	if screen == "profile":
 		_submit_name()
 	elif player_name.strip_edges().length() >= 2:
@@ -268,7 +308,17 @@ func _submit_name() -> void:
 		name_error = "Entre au moins 2 caractères."
 		name_input.grab_focus()
 		return
+	var previous_name := player_name
 	player_name = cleaned.left(16)
+	if editing_profile:
+		var merged_score := -1
+		for entry in records:
+			if str(entry.get("name", "")).to_lower() in [previous_name.to_lower(), player_name.to_lower()]:
+				merged_score = maxi(merged_score, int(entry.score))
+		records = records.filter(func(entry): return str(entry.get("name", "")).to_lower() not in [previous_name.to_lower(), player_name.to_lower()])
+		if merged_score >= 0:
+			records.append({"name": player_name, "avatar": player_avatar, "score": merged_score})
+			records.sort_custom(func(a, b): return int(a.score) > int(b.score))
 	for entry in records:
 		if str(entry.get("name", "Moi")).to_lower() == player_name.to_lower():
 			entry.avatar = player_avatar
@@ -277,7 +327,12 @@ func _submit_name() -> void:
 		DisplayServer.virtual_keyboard_hide()
 	_save()
 	_sync_cloud(_personal_record())
-	_start_game()
+	if editing_profile:
+		editing_profile = false
+		screen = return_screen
+		_sync_buttons()
+	else:
+		_start_game()
 
 func _start_game() -> void:
 	round_model.start()
@@ -530,6 +585,8 @@ func _sync_cloud(score := -1) -> void:
 		cloud_available = false
 	cloud_busy = false
 	_sync_rank_avatars()
+	profile_button.visible = screen in ["home", "results"]
+	gift_button.visible = screen in ["home", "results"]
 	queue_redraw()
 	if cloud_pending_score >= 0:
 		var pending := cloud_pending_score
@@ -594,6 +651,8 @@ func _draw() -> void:
 		_draw_profile()
 	elif screen == "game":
 		_draw_game()
+	elif screen == "gifts":
+		_draw_gifts()
 	else:
 		_draw_results()
 	for effect in effects:
@@ -672,6 +731,32 @@ func _select_avatar(id: int) -> void:
 	_play("click")
 	queue_redraw()
 
+func _draw_gifts() -> void:
+	_pic("gift-button", Rect2(157, 74, 76, 79))
+	_text("LES DOTATIONS", 195, 191, 31, CREAM, true)
+	_text("Le podium a ses cadeaux", 195, 220, 14, MUTED, true, false)
+	var prizes := [["1", "Console de jeu", "Pour le grand gagnant", "ffd47e"], ["2", "Casque audio", "Pour la deuxième place", "d6d6f0"], ["3", "Coffret gourmand", "Pour la troisième place", "e6b38e"]]
+	for i in range(3):
+		var y := 251.0 + i * 125
+		var rect := Rect2(22, y, 346, 112)
+		var style := StyleBoxFlat.new()
+		style.bg_color = Color("422844") if i == 0 else Color("2b1a3b")
+		style.border_color = Color(prizes[i][3])
+		style.set_border_width_all(2 if i == 0 else 1)
+		style.set_corner_radius_all(23)
+		style.shadow_color = Color(0.03, 0.01, 0.06, 0.4)
+		style.shadow_size = 6
+		draw_style_box(style, rect)
+		_pic("rank-%d" % (i + 1), Rect2(34, y + 12, 32, 32))
+		_pic("gift-button", Rect2(39, y + 43, 51, 53))
+		_text("%s PLACE" % ("1RE" if i == 0 else "%dE" % (i + 1)), 106, y + 29, 11, Color(prizes[i][3]))
+		_text(prizes[i][1], 106, y + 58, 23, CREAM)
+		_text(prizes[i][2], 106, y + 84, 12, MUTED, false, false)
+	_capsule(Rect2(87, 649, 216, 28), Color("302039"), Color("79548b"))
+	_text("APERÇU · LOTS FICTIFS", 195, 668, 11, Color("dfbee9"), true)
+	_text("Les cadeaux définitifs seront annoncés ici.", 195, 699, 11, MUTED, true, false)
+	_action(Rect2(58, 736, 274, 63), "RETOUR")
+
 func _draw_profile() -> void:
 	_hero(25)
 	_text("Qui sauve le bureau ?", 195, 362, 28, CREAM, true)
@@ -680,7 +765,7 @@ func _draw_profile() -> void:
 	_text(name_error if not name_error.is_empty() else "De 2 à 16 caractères", 48, 522, 12, Color("ffab91") if not name_error.is_empty() else MUTED, false, false)
 	_text("TON AVATAR", 48, 549, 11, MUTED)
 	_text("‹   Fais glisser pour choisir   ›", 195, 704, 11, MUTED, true, false)
-	_action(Rect2(58, 720, 274, 63), "C’EST PARTI !")
+	_action(Rect2(58, 720, 274, 63), "ENREGISTRER" if editing_profile else "C’EST PARTI !")
 
 func _capsule(rect: Rect2, fill: Color, border: Color) -> void:
 	var style := StyleBoxFlat.new()
@@ -848,4 +933,3 @@ func _draw_results() -> void:
 		_text("Ton record : %d pts" % _personal_record(), 224, 662, 14, MINT, true)
 		_text("À toi de faire encore mieux !", 224, 684, 12, CREAM, true, false)
 	_action(Rect2(58, 720, 274, 63), "Rejouer")
-	_text("Classement en ligne" if cloud_available else ("Classement local" if save_available else "Sauvegarde indisponible"), 195, 810, 10, MUTED, true, false)

@@ -91,6 +91,18 @@ func run() -> void:
 	game.round_model.score = 100
 	game._finish()
 	check(game._personal_record() == 100 and game.records[0].name == "Alex", "Leaderboard orders players by best score")
+	game.screen = "home"
+	game._edit_profile()
+	game.name_input.text = "Alex modifié"
+	game._select_avatar(3)
+	game._submit_name()
+	check(game.screen == "home" and game.player_avatar == 3, "Profile editing saves without starting a round")
+	check(game._personal_record() == 100, "Renaming keeps the local personal record")
+	game._open_gifts()
+	check(game.screen == "gifts", "Gift button opens rewards")
+	await snap("gifts")
+	game._primary()
+	check(game.screen == "home", "Rewards returns to previous screen")
 	game.records = old_records
 	game.record = old_record
 	game.player_name = old_name

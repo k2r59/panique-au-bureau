@@ -4,6 +4,7 @@
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 		<title>$GODOT_PROJECT_NAME</title>
+<link rel="stylesheet" href="index.install.css">
 		<style>
 html, body, #canvas {
 	margin: 0;
@@ -128,6 +129,7 @@ body {
 			<div id="status-notice"></div>
 		</div>
 
+		<script src="index.install.js"></script>
 		<script src="$GODOT_URL"></script>
 		<script>
 const GODOT_CONFIG = $GODOT_CONFIG;
@@ -168,6 +170,7 @@ const engine = new Engine(GODOT_CONFIG);
 		}
 		if (mode === 'hidden') {
 			statusOverlay.remove();
+			window.dispatchEvent(new Event("panique-ready"));
 			initializing = false;
 			return;
 		}

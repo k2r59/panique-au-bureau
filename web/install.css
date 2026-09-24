@@ -1,0 +1,17 @@
+#install-dialog{box-sizing:border-box;width:min( calc(100% - 28px),380px);max-height:calc(100dvh - 24px);padding:28px 24px 18px;border:1px solid #9870b0;border-radius:30px;color:#fff3dc;background:radial-gradient(ellipse at 50% 0,#613879 0,transparent 58%),linear-gradient(160deg,#2e1941,#160c23);box-shadow:0 22px 70px #0009,inset 0 1px #e7bef344;font:15px/1.4 system-ui,sans-serif;text-align:center;overflow:auto}
+#install-dialog::backdrop{background:#090311c9;backdrop-filter:blur(7px)}
+
+#install-dialog *{box-sizing:border-box}#install-dialog button{font:inherit;cursor:pointer;touch-action:manipulation}
+#install-close{position:absolute;right:12px;top:12px;border:1px solid #a081b04d;background:#20112e;color:#dbc6e7;border-radius:50%;width:44px;height:44px;font-size:25px!important}
+.install-icon{width:86px;height:86px;border-radius:23px;box-shadow:0 10px 26px #07010c80,0 0 0 2px #ffc768;margin:0 auto 15px;display:block}
+.install-eyebrow{font-size:10px;letter-spacing:.16em;font-weight:800;color:#faca7b;margin:0 0 7px}
+#install-title{font-size:27px;line-height:1.08;letter-spacing:-.6px;margin:0 0 12px;font-weight:900;text-wrap:balance}
+.install-description{color:#d9c6e1;margin:0 auto 18px;max-width:270px;font-size:14px}
+.install-steps{list-style:none;margin:0 0 18px;padding:12px;text-align:left;border:1px solid #9370aa55;border-radius:17px;background:#140b2280;counter-reset:step}
+.install-steps li{display:flex;align-items:center;gap:10px;margin:7px 0;font-size:13px;min-height:30px}.install-steps li:before{counter-increment:step;content:counter(step);display:grid;place-items:center;flex:0 0 25px;height:25px;border:1px solid #d6a25988;border-radius:50%;color:#ffdc92;font-size:12px;font-weight:800}.install-steps svg{vertical-align:middle;margin:0 4px;color:#ffcf78}
+#install-action{display:block;width:100%;min-height:52px;border:2px solid #ffdc80;border-radius:28px;background:linear-gradient(#ffb83e,#ff7714);box-shadow:0 4px 0 #9a3f15,inset 0 1px #fff2b5;color:#fff8e6;font-size:16px!important;font-weight:900!important;letter-spacing:.04em;text-shadow:0 1px 2px #a64819}
+#install-later{min-height:44px;margin-top:10px;padding:8px 18px;background:none;border:0;color:#c4abcd;font-size:13px!important}
+#install-dialog button:focus-visible{outline:3px solid #9cffd5;outline-offset:3px}
+@keyframes install-enter{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:none}}
+@media(max-height:600px){#install-dialog{padding:18px 20px 10px}.install-icon{width:58px;height:58px;margin-bottom:10px}#install-title{font-size:23px}.install-description{margin-bottom:10px}.install-steps{margin-bottom:12px;padding:7px 10px}}
+@media(prefers-reduced-motion:reduce){#install-dialog[open]{animation:none}}

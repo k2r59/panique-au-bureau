@@ -5,3 +5,6 @@ godot_bin=${GODOT_BIN:-/Applications/Godot.app/Contents/MacOS/Godot}
 mkdir -p "$project_dir/build/web"
 "$godot_bin" --headless --path "$project_dir" --editor --import
 "$godot_bin" --headless --path "$project_dir" --export-release 'Web PWA'
+
+cp "$project_dir/web/install.js" "$project_dir/build/web/index.install.js"
+cp "$project_dir/web/install.css" "$project_dir/build/web/index.install.css"
