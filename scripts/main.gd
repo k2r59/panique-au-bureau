@@ -261,7 +261,7 @@ func _sync_buttons() -> void:
 	if OS.has_feature("web"):
 		JavaScriptBridge.eval("window.dispatchEvent(new CustomEvent('panique-screen', {detail: %s}));" % JSON.stringify(screen))
 	_sync_rank_avatars()
-	profile_button.visible = screen in ["home", "results"]
+	profile_button.visible = screen == "results" and player_name.strip_edges().length() >= 2
 	gift_button.visible = screen in ["home", "results"]
 	queue_redraw()
 	volume_button.icon = load("res://assets/ui/volume-on.svg" if sound_enabled else "res://assets/ui/volume-off.svg")
@@ -585,7 +585,7 @@ func _sync_cloud(score := -1) -> void:
 		cloud_available = false
 	cloud_busy = false
 	_sync_rank_avatars()
-	profile_button.visible = screen in ["home", "results"]
+	profile_button.visible = screen == "results" and player_name.strip_edges().length() >= 2
 	gift_button.visible = screen in ["home", "results"]
 	queue_redraw()
 	if cloud_pending_score >= 0:
