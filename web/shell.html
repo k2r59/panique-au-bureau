@@ -36,6 +36,10 @@ body {
 	height: 100%;
 }
 
+/* Godot uses invisible native inputs to summon the iOS keyboard. Keep these
+   inside the visible area and at 16px so Safari neither zooms nor scrolls. */
+body > input, body > textarea { position: fixed !important; top: 120px !important; left: 50% !important; width: 1px !important; height: 1px !important; font-size: 16px !important; opacity: 0 !important; }
+
 #canvas:focus {
 	outline: none;
 }
@@ -129,6 +133,7 @@ body {
 			<div id="status-notice"></div>
 		</div>
 
+		<script src="index.viewport.js"></script>
 		<script src="index.install.js"></script>
 		<script src="$GODOT_URL"></script>
 		<script>
@@ -136,24 +141,6 @@ const GODOT_CONFIG = $GODOT_CONFIG;
 const GODOT_THREADS_ENABLED = $GODOT_THREADS_ENABLED;
 // Own the drawing buffer size so Godot cannot stretch it to the desktop window.
 GODOT_CONFIG.canvasResizePolicy = 0;
-const gameCanvas = document.getElementById('canvas');
-function resizeGameCanvas() {
-	const width = Math.min(768, document.documentElement.clientWidth);
-	const height = Math.round(window.visualViewport?.height || window.innerHeight);
-	const ratio = window.devicePixelRatio || 1;
-	const overlay = document.getElementById('status');
-	if (overlay) overlay.style.height = `${height}px`;
-	document.documentElement.style.setProperty('--splash-scale', Math.min(width / 390, height / 844));
-	gameCanvas.style.width = `${width}px`;
-	gameCanvas.style.height = `${height}px`;
-	const bufferWidth = Math.round(width * ratio);
-	const bufferHeight = Math.round(height * ratio);
-	if (gameCanvas.width !== bufferWidth) gameCanvas.width = bufferWidth;
-	if (gameCanvas.height !== bufferHeight) gameCanvas.height = bufferHeight;
-}
-resizeGameCanvas();
-window.addEventListener('resize', resizeGameCanvas);
-window.visualViewport?.addEventListener('resize', resizeGameCanvas);
 const engine = new Engine(GODOT_CONFIG);
 
 (function () {

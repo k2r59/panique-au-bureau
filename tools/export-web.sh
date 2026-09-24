@@ -8,3 +8,4 @@ mkdir -p "$project_dir/build/web"
 
 cp "$project_dir/web/install.js" "$project_dir/build/web/index.install.js"
 cp "$project_dir/web/install.css" "$project_dir/build/web/index.install.css"
+cp "$project_dir/web/viewport.js" "$project_dir/build/web/index.viewport.js"
