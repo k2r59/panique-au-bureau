@@ -85,6 +85,45 @@ func run() -> void:
 	check(game.screen == "results" and game.records.size() > 0, "Results save a finished round")
 	game.result_age = 2
 	await snap("results")
+	var saved_ranking: Array = game.records.duplicate(true)
+	game.records = []
+	for i in range(20):
+		game.records.append({"name": "Joueur %02d" % (i + 1), "avatar": i % 6 + 1, "score": 20000 - i * 100})
+	game._sync_buttons()
+	await process_frame
+	await process_frame
+	check(game.ranking_list.get_v_scroll_bar().visible, "Long ranking exposes scrollbar")
+	var wheel := InputEventMouseButton.new()
+	wheel.button_index = MOUSE_BUTTON_WHEEL_DOWN
+	wheel.pressed = true
+	wheel.position = game.fit_offset + Vector2(180, 510) * game.fit_scale
+	Input.parse_input_event(wheel)
+	await process_frame
+	check(game.ranking_list.scroll_vertical > 0, "Mouse wheel scrolls ranking")
+	game.ranking_list.scroll_vertical = 0
+	var touch := InputEventScreenTouch.new()
+	touch.index = 0
+	touch.pressed = true
+	touch.position = game.fit_offset + Vector2(180, 585) * game.fit_scale
+	Input.parse_input_event(touch)
+	await process_frame
+	for step in range(1, 8):
+		var swipe := InputEventScreenDrag.new()
+		swipe.index = 0
+		swipe.position = game.fit_offset + Vector2(180, 585 - step * 20) * game.fit_scale
+		swipe.relative = Vector2(0, -20) * game.fit_scale
+		Input.parse_input_event(swipe)
+		await process_frame
+	touch.pressed = false
+	touch.position = game.fit_offset + Vector2(180, 445) * game.fit_scale
+	Input.parse_input_event(touch)
+	await process_frame
+	check(game.ranking_list.scroll_vertical > 0, "Touch swipe scrolls ranking")
+	game.ranking_list.scroll_vertical = 10000
+	await snap("ranking-bottom")
+	check(game.ranking_list.scroll_vertical == 675, "Last of twenty rows is reachable without overflow")
+	game.records = saved_ranking
+	game._sync_buttons()
 	game.records.clear()
 	game._load_save()
 	check(game.records.any(func(e): return e.score == 50 and e.avatar == 5), "Score retains chosen avatar after reload")

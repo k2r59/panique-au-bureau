@@ -39,7 +39,7 @@ var players: Array[AudioStreamPlayer] = []
 var player_name := ""
 var player_avatar := 1
 var avatar_buttons: Array[Button] = []
-var ranking_portraits: Array[TextureRect] = []
+var ranking_list: ScrollContainer
 var avatar_scroll: ScrollContainer
 var avatar_dragging := false
 var avatar_drag_moved := false
@@ -127,19 +127,10 @@ func _ready() -> void:
 		avatar_row.add_child(avatar_button)
 		avatar_buttons.append(avatar_button)
 	_style_avatars()
-	for i in range(5):
-		var portrait := TextureRect.new()
-		portrait.position = Vector2(71, 401 + i * 45)
-		portrait.size = Vector2(30, 30)
-		portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var material := ShaderMaterial.new()
-		material.shader = preload("res://assets/ui/rounded-portrait.gdshader")
-		material.set_shader_parameter("radius", 0.5)
-		portrait.material = material
-		ui_layer.add_child(portrait)
-		ranking_portraits.append(portrait)
+	ranking_list = preload("res://scripts/ranking_list.gd").new()
+	ranking_list.position = Vector2(20, 394)
+	ranking_list.size = Vector2(350, 225)
+	ui_layer.add_child(ranking_list)
 	primary = _button(Rect2(58, 708, 274, 63), "JOUER", _primary, "Commencer une partie", true)
 	_create_volume_button()
 	profile_button = _header_button(10, "profile-button", _edit_profile, "Modifier mon profil")
@@ -255,11 +246,9 @@ func _button(rect: Rect2, caption: String, callback: Callable, hint: String, inv
 	return button
 
 func _sync_rank_avatars() -> void:
-	var ranking: Array = cloud_records if cloud_available else records
-	for i in range(ranking_portraits.size()):
-		ranking_portraits[i].visible = screen == "results" and i < ranking.size()
-		if i < ranking.size():
-			ranking_portraits[i].texture = textures["avatar-%d" % clampi(int(ranking[i].get("avatar", 1)), 1, 6)]
+	ranking_list.visible = screen == "results"
+	if ranking_list.visible:
+		ranking_list.update_ranking(cloud_records if cloud_available else records, self)
 
 func _sync_buttons() -> void:
 	if OS.has_feature("web"):
@@ -918,22 +907,6 @@ func _draw_results() -> void:
 	_text("pts", score_x + number_width + 9, 335, 24, CREAM)
 	_text("Ton meilleur score compte", 195, 374, 14, CREAM, true, false)
 	_panel(Rect2(18, 389, 354, 237))
-	for i in range(5):
-		var y := 399 + i * 45
-		var active: bool = i < ranking.size() and (str(ranking[i].get("id", "")) == cloud_user_id if cloud_available else str(ranking[i].get("name", "Moi")).to_lower() == player_name.to_lower())
-		if active:
-			_pic("leaderboard-row-active", Rect2(20, y - 5, 350, 45), 1, false)
-		elif i > 0:
-			draw_line(Vector2(30, y - 5), Vector2(360, y - 5), Color("52385f"), 1)
-		_pic("rank-%d" % (i + 1 if i < 3 else 0), Rect2(28, y, 33, 33))
-		if i >= 3:
-			_text(str(i + 1), 44, y + 23, 14, CREAM, true)
-		if i < ranking.size():
-			draw_circle(Vector2(86, y + 17), 16.5, Color("ffe7a3") if active else Color("ba96cd"), true, -1, true)
-			_text(str(ranking[i].get("name", "Moi")).left(13), 117, y + 24, 15)
-			_text(_score_label(int(ranking[i].score)), 326, y + 24, 17, CREAM, true)
-		else:
-			_text("À toi de jouer…", 117, y + 24, 12, MUTED, false, false)
 	_pic("next-rank-card", Rect2(18, 637, 354, 64), 1, false)
 	var next_player: Dictionary = {}
 	for entry in ranking:
