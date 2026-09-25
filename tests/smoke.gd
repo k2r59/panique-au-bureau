@@ -31,6 +31,17 @@ func run() -> void:
 	check(game.screen == "profile" and not game.name_error.is_empty(), "Blank nickname rejected")
 	game.name_input.text = "Camille"
 	game.name_input.text_changed.emit("Camille")
+	for cycle in range(5):
+		game.name_input.grab_focus()
+		var touch := InputEventScreenTouch.new()
+		touch.pressed = true
+		touch.position = game.fit_offset + (game.name_input.position + game.name_input.size / 2) * game.fit_scale
+		game._input(touch)
+		check(game.name_input.has_focus(), "Touch inside nickname keeps focus")
+		touch.position = game.fit_offset + Vector2(16, 240) * game.fit_scale
+		game._input(touch)
+		check(not game.name_input.has_focus(), "Touch outside nickname dismisses focus")
+		check(game.name_input.text == "Camille" and game.screen == "profile", "Dismissal preserves nickname and profile screen")
 	await process_frame
 	var press := InputEventMouseButton.new()
 	press.button_index = MOUSE_BUTTON_LEFT

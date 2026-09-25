@@ -40,6 +40,8 @@ body {
    inside the visible area and at 16px so Safari neither zooms nor scrolls. */
 body > input, body > textarea { position: fixed !important; top: 120px !important; left: 50% !important; width: 1px !important; height: 1px !important; font-size: 16px !important; opacity: 0 !important; }
 
+#keyboard-done { position:fixed; z-index:100; min-height:44px; padding:8px 18px; border:1px solid #ffdc89; border-radius:23px; background:linear-gradient(#614071,#2d173d); box-shadow:0 3px 10px #0006; color:#fff0cb; font:700 16px system-ui; touch-action:manipulation; }
+#keyboard-done[hidden] { display:none; }
 #canvas:focus {
 	outline: none;
 }

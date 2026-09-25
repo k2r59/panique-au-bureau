@@ -1,0 +1,30 @@
+name: PaniqueKeyboardQA
+options:
+  bundleIdPrefix: dev.promo.qa
+settings:
+  CODE_SIGNING_ALLOWED: NO
+targets:
+  Harness:
+    type: application
+    platform: iOS
+    deploymentTarget: '17.0'
+    sources: [App]
+    settings:
+      GENERATE_INFOPLIST_FILE: YES
+  KeyboardTests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: '17.0'
+    sources: [Tests]
+    dependencies:
+      - target: Harness
+    settings:
+      GENERATE_INFOPLIST_FILE: YES
+schemes:
+  KeyboardQA:
+    build:
+      targets:
+        Harness: all
+        KeyboardTests: [test]
+    test:
+      targets: [KeyboardTests]

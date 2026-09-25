@@ -46,6 +46,7 @@ var avatar_drag_moved := false
 var avatar_drag_start := Vector2.ZERO
 var avatar_drag_origin := 0
 var name_error := ""
+var keyboard_dismiss_callback
 var name_input: LineEdit
 var ui_layer: Control
 var fit_scale := 1.0
@@ -94,6 +95,9 @@ func _ready() -> void:
 	name_input.text_changed.connect(func(_value): name_error = "")
 	name_input.text_submitted.connect(func(_value): _submit_name())
 	ui_layer.add_child(name_input)
+	if OS.has_feature("web"):
+		keyboard_dismiss_callback = JavaScriptBridge.create_callback(func(_args): _dismiss_keyboard.call_deferred())
+		JavaScriptBridge.get_interface("window").paniqueDismissKeyboard = keyboard_dismiss_callback
 	avatar_scroll = ScrollContainer.new()
 	avatar_scroll.position = Vector2(24, 563)
 	avatar_scroll.size = Vector2(342, 120)
@@ -300,8 +304,9 @@ func _primary() -> void:
 		name_error = ""
 		name_input.text = player_name
 		_sync_buttons()
-		name_input.grab_focus()
-		name_input.select_all()
+		if not OS.has_feature("web"):
+			name_input.grab_focus()
+			name_input.select_all()
 
 func _submit_name() -> void:
 	var cleaned := name_input.text.strip_edges()
@@ -397,7 +402,17 @@ func _hit(index: int) -> void:
 			combo_age = 0.0
 			_play("bonus")
 
+func _dismiss_keyboard() -> void:
+	name_input.release_focus()
+	if DisplayServer.has_feature(DisplayServer.FEATURE_VIRTUAL_KEYBOARD):
+		DisplayServer.virtual_keyboard_hide()
+
 func _input(event: InputEvent) -> void:
+	var pointer_pressed: bool = (event is InputEventScreenTouch and event.pressed) or (event is InputEventMouseButton and event.pressed and event.device != -1)
+	if screen == "profile" and name_input.has_focus() and pointer_pressed:
+		var local_point: Vector2 = (event.position - fit_offset) / fit_scale
+		if not Rect2(name_input.position, name_input.size).has_point(local_point):
+			_dismiss_keyboard()
 	if screen == "profile" and event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		var point: Vector2 = (event.position - fit_offset) / fit_scale
 		if event.pressed and Rect2(24, 563, 342, 120).has_point(point):
